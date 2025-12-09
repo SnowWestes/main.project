@@ -1,0 +1,90 @@
+import processing.serial.*;
+import processing.net.*; 
+
+String portName = "COM4"; // ⚠️ 환경에 맞게 수정 필요
+final int BAUD_RATE = 9600;
+final int WEB_PORT = 8888; 
+
+Serial myPort; 
+Server myServer; 
+
+float currentTemp = 0.0;
+int currentLight = 0;
+final float TEMP_THRESHOLD = 30.0;
+final int LIGHT_THRESHOLD = 300;
+
+void setup() {
+  size(400, 300);
+  
+  try {
+    myPort = new Serial(this, portName, BAUD_RATE);
+    myPort.bufferUntil('\n'); 
+    println("✅ 시리얼 연결 성공: " + portName);
+  } catch (Exception e) {
+    println("❌ 시리얼 연결 실패.");
+    myPort = null;
+  }
+  
+  try {
+    myServer = new Server(this, WEB_PORT);
+    println("✅ 웹 서버 시작됨 (IP: " + Server.ip() + ", Port: " + WEB_PORT + ")");
+  } catch (Exception e) {
+    println("❌ 웹 서버 시작 실패 (포트 충돌 가능성).");
+    myServer = null;
+  }
+}
+
+void draw() {
+  if (myServer != null) {
+    Client client = myServer.available();
+    if (client != null) {
+      String request = client.readString();
+      if (request != null) {
+        if (request.indexOf("GET /data") != -1) {
+          String jsonResponse = "{\"temp\": " + currentTemp + ", \"light\": " + currentLight + "}";
+          client.write("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n" + jsonResponse);
+        }
+        else if (request.indexOf("GET /cmd") != -1) {
+          String command = "";
+          if (request.indexOf("action=LED_ON") != -1) command = "LED_ON";
+          else if (request.indexOf("action=LED_OFF") != -1) command = "LED_OFF";
+          else if (request.indexOf("action=BUZZER_ON") != -1) command = "BUZZER_ON";
+          else if (request.indexOf("action=BUZZER_OFF") != -1) command = "BUZZER_OFF";
+          
+          if (!command.equals("") && myPort != null) {
+            myPort.write(command + "\n");
+            client.write("HTTP/1.1 200 OK\r\n\r\n" + command + " OK");
+          }
+        }
+        client.stop();
+      }
+    }
+  }
+
+  int red = (int)map(currentTemp, 10, 40, 0, 255);
+  int blue = (int)map(currentTemp, 10, 40, 255, 0);
+  background(red, 150, blue);
+  textAlign(LEFT);
+  textSize(20); fill(255);
+  text("IoT Server Running (" + Server.ip() + ":" + WEB_PORT + ")", 20, 30);
+  textSize(32);
+  text(String.format("Temp: %.2f C", currentTemp), 20, 100);
+  text("Light: " + currentLight, 20, 150);
+}
+
+void serialEvent(Serial p) {
+  try {
+    String data = p.readStringUntil('\n');
+    if (data != null) {
+      data = data.trim();
+      if (data.indexOf("T:") != -1 && data.indexOf("L:") != -1) {
+        String[] parts = split(data, ',');
+        for (String part : parts) {
+            String trimmedPart = part.trim();
+            if (trimmedPart.startsWith("T:")) currentTemp = Float.parseFloat(trimmedPart.substring(2).trim());
+            if (trimmedPart.startsWith("L:")) currentLight = Integer.parseInt(trimmedPart.substring(2).trim());
+        }
+      }
+    }
+  } catch (Exception e) {}
+}
