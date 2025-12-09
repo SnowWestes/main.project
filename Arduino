@@ -1,0 +1,58 @@
+#include <math.h>
+
+const int thermistorPin = A0;
+const int ldrPin = A1;
+const int ledPin = 3;
+const int buzzerPin = 4;
+
+const float SERIES_RESISTOR = 10000.0;
+const float NOMINAL_RESISTANCE = 10000.0;
+const float NOMINAL_TEMPERATURE = 25.0;
+const float B_COEFFICIENT = 3950.0;
+
+const float TEMP_THRESHOLD = 30.0;
+const int LIGHT_THRESHOLD = 300;
+
+String inputData = "";
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(ledPin, OUTPUT);
+  pinMode(buzzerPin, OUTPUT);
+  digitalWrite(ledPin, LOW);
+  noTone(buzzerPin);
+}
+
+void loop() {
+  int adcValue = analogRead(thermistorPin);
+  float resistance = SERIES_RESISTOR * (1023.0 / adcValue - 1.0);
+  float steinhart = resistance / NOMINAL_RESISTANCE;
+  steinhart = log(steinhart);
+  steinhart /= B_COEFFICIENT;
+  steinhart += 1.0 / (NOMINAL_TEMPERATURE + 273.15);
+  steinhart = 1.0 / steinhart;
+  float tempC = steinhart - 273.15;
+
+  int lightVal = analogRead(ldrPin);
+
+  Serial.print("T:");
+  Serial.print(tempC);
+  Serial.print(", L:");
+  Serial.println(lightVal);
+
+  if (lightVal < LIGHT_THRESHOLD) digitalWrite(ledPin, HIGH);
+  else digitalWrite(ledPin, LOW);
+
+  if (tempC > TEMP_THRESHOLD) tone(buzzerPin, 1000);
+  else noTone(buzzerPin);
+
+  if (Serial.available()) {
+    inputData = Serial.readStringUntil('\n');
+    inputData.trim();
+    if (inputData == "LED_ON") digitalWrite(ledPin, HIGH);
+    else if (inputData == "LED_OFF") digitalWrite(ledPin, LOW);
+    else if (inputData == "BUZZER_ON") tone(buzzerPin, 1000);
+    else if (inputData == "BUZZER_OFF") noTone(buzzerPin);
+  }
+  delay(1000);
+}
