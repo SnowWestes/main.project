@@ -13,6 +13,9 @@ PC를 중계 서버(Web Server)로 활용하여, 외부 하드웨어(Wi-Fi 모�
     * 설정 밝기(300) 미만 시 LED 자동 점등
 4.  **브릿지(Bridge) 통신:** 프로세싱이 아두이노(시리얼)와 앱(Wi-Fi) 간의 통신을 중계
 
+## YouTube 유튜브 시연 영상 링크
+https://youtu.be/qf9_ki-GXZY?si=TMd1kvVT-vup0em9
+
 ## 🛠️ 시스템 구성도
 `[Arduino Uno] <--(USB Serial)--> [PC / Processing Server] <--(Wi-Fi HTTP)--> [Smartphone / App Inventor]`
 
